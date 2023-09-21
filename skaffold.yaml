@@ -1,0 +1,59 @@
+apiVersion: skaffold/v2beta24
+kind: Config
+metadata:
+  name: build-submodule-demo
+profiles:
+  - name: local
+    activation:
+      - command: dev
+    build:
+      tagPolicy:
+        gitCommit: {}
+      artifacts:
+        - image: build-submodule-demo
+          custom:
+            buildCommand: |
+              make go.build PLATFORM=linux_$HOSTARCH
+              make -C cluster/images/build-submodule-demo img.build IMAGE=$IMAGE IMAGE_PLATFORMS=linux/$HOSTARCH
+            dependencies:
+              paths:
+                - cmd
+                - internal
+                - cluster/images/build-submodule-demo/Dockerfile
+              ignore:
+                - build
+                - .cache
+                - .github
+                - skaffold.yaml
+                - .work
+                - .vscode
+    deploy:
+      helm:
+        hooks:
+          before:
+            - host:
+                command: [
+                    "sh",
+                    "-c",
+                    "kubectl create namespace argo-rollouts --dry-run=client -o yaml | kubectl apply -f -",
+                  ]
+            - host:
+                command: [
+                  "sh",
+                  "-c",
+                  "kubectl apply -n argo-rollouts -f https://github.com/argoproj/argo-rollouts/releases/download/v1.2.0/install.yaml"
+                ]
+        releases:
+          - name: build-submodule-demo
+            chartPath: cluster/charts/build-submodule-demo
+            namespace: default
+            createNamespace: true
+            artifactOverrides:
+              image: build-submodule-demo
+            imageStrategy:
+              helm: {}
+
+build:
+  local:
+    push: false
+

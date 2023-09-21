@@ -1,0 +1,16 @@
+{{- if .Values.prometheus.podMonitor.enabled -}}
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ template "build-submodule-demo.name" . }}
+  labels:
+    {{- include "build-submodule-demo.labels" . | nindent 4 }}
+spec:
+  podMetricsEndpoints:
+  - interval: "{{ .Values.prometheus.podMonitor.interval }}"
+    port: metrics
+    path: "/metrics"
+  selector:
+    matchLabels:
+      {{- include "build-submodule-demo.selectorLabels" . | nindent 6 }}
+{{- end -}}

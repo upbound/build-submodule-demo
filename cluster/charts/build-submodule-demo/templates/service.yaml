@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "build-submodule-demo.fullname" . }}-api
+  labels:
+    {{- include "build-submodule-demo.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.api.port }}
+      targetPort: api
+      protocol: TCP
+      name: api
+  selector:
+    {{- include "build-submodule-demo.selectorLabels" . | nindent 4 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "build-submodule-demo.fullname" . }}-api-stable
+  labels:
+    {{- include "build-submodule-demo.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.api.port }}
+      targetPort: api
+      protocol: TCP
+      name: api
+  selector:
+    {{- include "build-submodule-demo.selectorLabels" . | nindent 4 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "build-submodule-demo.fullname" . }}-api-canary
+  labels:
+    {{- include "build-submodule-demo.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.api.port }}
+      targetPort: api
+      protocol: TCP
+      name: api
+  selector:
+    {{- include "build-submodule-demo.selectorLabels" . | nindent 4 }}

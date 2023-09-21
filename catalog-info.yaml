@@ -1,0 +1,11 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: "build-submodule-demo"
+  description: "Testing the Flow"
+  annotations:
+    github.com/project-slug: upbound/build-submodule-demo
+spec:
+  type: service
+  lifecycle: experimental
+  owner: group:default/team-control-planes

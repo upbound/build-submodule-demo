@@ -1,0 +1,97 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: {{ include "build-submodule-demo.fullname" . }}
+  labels:
+    {{- include "build-submodule-demo.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ template "build-submodule-demo.name" . }}
+      release: {{ .Release.Name }}
+  strategy:
+    canary:
+      {{- if .Values.canary.enabled }} # https://argoproj.github.io/argo-rollouts/features/canary/#mimicking-rolling-update
+      steps:
+        - setWeight: {{ .Values.canary.weight }}
+        - pause:
+            duration: {{ .Values.canary.duration }} # wait for 2 mins to get some metrics on canary, analysis starts at this step.
+        - pause:
+            duration: {{ .Values.canary.duration }} # wait 2 more mins until analysis completes
+      analysis:
+        templates:
+          - templateName: {{ .Values.canary.analysisTemplate }}
+        startingStep: 2
+        args:
+          - name: service-name
+            value: {{ include "build-submodule-demo.fullname" . }}-api
+          - name: service-version
+            value: {{ .Chart.AppVersion }}
+          - name: metric-interval
+            value: {{ .Values.canary.duration }}
+      {{- end }}
+      canaryService: {{ include "build-submodule-demo.fullname" . }}-api-canary
+      stableService: {{ include "build-submodule-demo.fullname" . }}-api-stable
+      {{- if .Values.canary.istio }}
+      trafficRouting:
+        istio:
+          virtualService:
+            name: {{ include "build-submodule-demo.fullname" . }}-api
+            routes:
+              - api
+      {{- end }}
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: {{ .Chart.Name }}
+      labels:
+        {{- include "build-submodule-demo.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "build-submodule-demo.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: api
+              containerPort: {{ .Values.service.api.port }}
+              protocol: TCP
+            - name: private
+              containerPort: {{ .Values.service.private.port }}
+              protocol: TCP
+            - name: metrics
+              containerPort: {{ .Values.service.metrics.port }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: private
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: private
+          env:
+            - name: DEBUG
+              value: "{{ .Values.logging.debug }}"
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
